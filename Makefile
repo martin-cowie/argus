@@ -1,18 +1,15 @@
-# The Command Line Tools ship the Swift Testing macro plugin in a directory the compiler
-# does not search by default; Xcode does not need this.
-CLT_TESTING_PLUGINS := /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
-TEST_FLAGS := $(if $(wildcard $(CLT_TESTING_PLUGINS)),-Xswiftc -plugin-path -Xswiftc $(CLT_TESTING_PLUGINS))
+SWIFT_FLAGS := $(shell scripts/swift-flags.sh)
 
 .PHONY: build run test app clean
 
 build:
-	swift build
+	swift build $(SWIFT_FLAGS)
 
 run:
-	swift run argus
+	swift run $(SWIFT_FLAGS) argus
 
 test:
-	swift test $(TEST_FLAGS)
+	swift test $(SWIFT_FLAGS)
 
 app:
 	./scripts/bundle.sh

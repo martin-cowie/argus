@@ -5,10 +5,11 @@ import SwiftUI
 @main
 struct ArgusApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @State private var hosts = HostStore()
 
     var body: some Scene {
         WindowGroup("Argus") {
-            ContentView()
+            ContentView(store: hosts)
         }
         .defaultSize(width: 900, height: 600)
     }

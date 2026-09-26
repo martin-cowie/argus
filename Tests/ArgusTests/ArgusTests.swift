@@ -1,8 +1,10 @@
+import Foundation
 import SwiftUI
 import Testing
 @testable import Argus
 
 @MainActor
 @Test func contentViewBuilds() {
-    _ = ContentView().body
+    let store = HostStore(fileURL: temporaryHostsFile(), passwords: InMemoryPasswordStore())
+    _ = ContentView(store: store).body
 }

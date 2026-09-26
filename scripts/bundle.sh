@@ -4,7 +4,9 @@ set -eu
 
 cd "$(dirname "$0")/.."
 
-swift build -c release
+flags=$(scripts/swift-flags.sh)
+# shellcheck disable=SC2086 # $flags holds several words
+swift build -c release $flags
 bin_dir=$(swift build -c release --show-bin-path)
 
 app=dist/Argus.app
