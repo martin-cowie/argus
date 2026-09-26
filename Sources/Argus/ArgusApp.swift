@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A bare SwiftPM executable has no Info.plist, so it launches as a background process
         // without a Dock icon or key window unless promoted explicitly.
         NSApp.setActivationPolicy(.regular)
+        NSApp.applicationIconImage = AppIcon.nsImage()
         NSApp.activate()
     }
 

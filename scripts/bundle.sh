@@ -9,8 +9,14 @@ bin_dir=$(swift build -c release --show-bin-path)
 
 app=dist/Argus.app
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin_dir/argus" "$app/Contents/MacOS/Argus"
+
+icon_work=$(mktemp -d)
+trap 'rm -rf "$icon_work"' EXIT
+swiftc -O -parse-as-library Sources/Argus/AppIcon.swift scripts/ExportIcon.swift -o "$icon_work/export-icon"
+"$icon_work/export-icon" "$icon_work/AppIcon.iconset"
+iconutil -c icns "$icon_work/AppIcon.iconset" -o "$app/Contents/Resources/AppIcon.icns"
 
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -21,6 +27,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
     <key>CFBundleDisplayName</key><string>Argus</string>
     <key>CFBundleIdentifier</key><string>com.example.argus</string>
     <key>CFBundleExecutable</key><string>Argus</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
     <key>CFBundleVersion</key><string>1</string>
