@@ -11,6 +11,11 @@ struct ArgusApp: App {
             ContentView()
         }
         .defaultSize(width: 900, height: 600)
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About Argus") { AboutPanel.show() }
+            }
+        }
     }
 }
 
