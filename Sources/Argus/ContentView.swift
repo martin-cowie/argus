@@ -38,7 +38,8 @@ struct ContentView: View {
             .navigationSplitViewColumnWidth(min: 180, ideal: 220)
         } detail: {
             if let host = store.hosts.first(where: { $0.id == selection }) {
-                HostDetailView(host: host)
+                HostDetailView(host: host, store: store)
+                    .id(host.id)
             } else if store.hosts.isEmpty {
                 ContentUnavailableView {
                     Label("No Hosts", systemImage: "eye")
@@ -72,29 +73,6 @@ struct ContentView: View {
             }
         } catch {
             removeError = error.localizedDescription
-        }
-    }
-}
-
-/// Summarises a host's connection settings.
-struct HostDetailView: View {
-    let host: RemoteHost
-
-    var body: some View {
-        Form {
-            LabeledContent("Hostname", value: host.hostname)
-            LabeledContent("Port", value: String(host.port))
-            LabeledContent("Username", value: host.username)
-            LabeledContent("Authentication", value: authenticationDescription)
-        }
-        .formStyle(.grouped)
-        .navigationTitle(host.displayName)
-    }
-
-    private var authenticationDescription: String {
-        switch host.authentication {
-        case .key(let path): "Private key \(NSString(string: path).abbreviatingWithTildeInPath)"
-        case .password: "Password (in Keychain)"
         }
     }
 }
