@@ -1,7 +1,7 @@
 import Foundation
 
 /// The editable state of the Add RemoteHost form.
-struct HostDraft {
+struct HostDraft: Equatable {
     /// The authentication method chosen in the form.
     enum Method: Hashable, CaseIterable {
         case key
