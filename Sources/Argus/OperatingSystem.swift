@@ -38,12 +38,12 @@ extension OperatingSystem {
 
     /// Asks a host for its operating system.
     ///
-    /// - Parameter client: A client for the host.
+    /// - Parameter host: Runs scripts on the host.
     /// - Returns: The host's operating system.
-    /// - Throws: `SSHError` if the host cannot be reached or its reply is not understood, or
-    ///   `CancellationError` if the task is cancelled.
-    static func fetch(using client: SSHClient) async throws -> OperatingSystem {
-        guard let result = OperatingSystem(scriptOutput: try await client.run(script)) else {
+    /// - Throws: An error if the host cannot be reached, `SSHError.unexpectedOutput` if its reply
+    ///   is not understood, or `CancellationError` if the task is cancelled.
+    static func fetch(from host: some ScriptRunner) async throws -> OperatingSystem {
+        guard let result = OperatingSystem(scriptOutput: try await host.run(script)) else {
             throw SSHError.unexpectedOutput
         }
         return result

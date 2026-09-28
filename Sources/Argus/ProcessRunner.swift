@@ -24,6 +24,44 @@ enum ProcessRunner {
         arguments: [String],
         environment: [String: String] = [:]
     ) async throws -> ProcessOutput {
+        try await run(executable, arguments: arguments, environment: environment, readOutput: readToEnd)
+    }
+
+    /// Runs a process with standard input from `/dev/null`, passing each line of its standard
+    /// output to a handler as it is written.
+    ///
+    /// - Parameters:
+    ///   - executable: The program to run.
+    ///   - arguments: Its arguments.
+    ///   - environment: Variables to add to the current environment.
+    ///   - onLine: Called with each line of standard output, without its terminator.
+    /// - Returns: The exit status and everything written to standard error; `standardOutput` is empty.
+    /// - Throws: An error if the process cannot be launched, or `CancellationError` if the task is
+    ///   cancelled, in which case the process is terminated.
+    static func run(
+        _ executable: URL,
+        arguments: [String],
+        environment: [String: String] = [:],
+        onLine: @escaping @Sendable (String) -> Void
+    ) async throws -> ProcessOutput {
+        try await run(executable, arguments: arguments, environment: environment) { handle in
+            do {
+                for try await line in handle.bytes.lines {
+                    onLine(line)
+                }
+            } catch {
+                // A failed read ends the output early; the exit status still reports the outcome.
+            }
+            return Data()
+        }
+    }
+
+    private static func run(
+        _ executable: URL,
+        arguments: [String],
+        environment: [String: String],
+        readOutput: @escaping @Sendable (FileHandle) async -> Data
+    ) async throws -> ProcessOutput {
         let process = Process()
         let output = Pipe()
         let errors = Pipe()
@@ -35,7 +73,7 @@ enum ProcessRunner {
         process.standardError = errors
 
         // Both pipes are drained concurrently so a child filling one cannot deadlock on the other.
-        async let outputData = readToEnd(output.fileHandleForReading)
+        async let outputData = readOutput(output.fileHandleForReading)
         async let errorData = readToEnd(errors.fileHandleForReading)
         let launch = Mutex(Launch.pending)
         let status: Int32

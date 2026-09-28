@@ -22,23 +22,52 @@ import Testing
     }
 }
 
+@Suite struct LoadAverageTests {
+    @Test(arguments: ["0.52 0.58 0.59", " 1.95 2.10 2.27 "])
+    func parsesThreeAverages(line: String) throws {
+        let load = try #require(LoadAverage(line: line))
+        #expect(load.oneMinute > 0.5 && load.fiveMinutes > 0.5 && load.fifteenMinutes > 0.5)
+    }
+
+    @Test(arguments: ["", "0.52 0.58", "0.52 0.58 0.59 1/123", "0,52 0,58 0,59"])
+    func rejectsOtherLines(line: String) {
+        #expect(LoadAverage(line: line) == nil)
+    }
+
+    @Test func scriptSamplesThisMac() async throws {
+        let (lines, continuation) = AsyncStream.makeStream(of: String.self)
+        let task = Task {
+            try await ProcessRunner.run(URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", LoadAverage.script]) {
+                continuation.yield($0)
+            }
+        }
+        var iterator = lines.makeAsyncIterator()
+        let line = await iterator.next()
+        task.cancel()
+        #expect(LoadAverage(line: try #require(line)) != nil)
+    }
+}
+
 @MainActor
 @Suite struct MonitorStoreTests {
-    private nonisolated static let linux = OperatingSystem(name: "Debian GNU/Linux", version: "12 (bookworm)")
-
     private func host(_ name: String) -> RemoteHost {
         RemoteHost(id: UUID(), hostname: name, port: 22, username: "pi", authentication: .password)
     }
 
-    @Test func reportsOperatingSystem() async {
-        let store = MonitorStore { _ in Self.linux }
+    @Test func reportsOperatingSystemAndLoad() async {
+        let store = MonitorStore { _ in FakeHost(lines: ["0.50 0.40 0.30", "1.00 0.50 0.25"]) }
         store.monitor([host("nas")])
         let monitor = store.monitors[0]
         await monitor.settled()
-        #expect(monitor.status == .connected(Self.linux))
+        #expect(monitor.operatingSystem == OperatingSystem(name: "Debian GNU/Linux", version: "12 (bookworm)"))
+        #expect(monitor.samples.map(\.load) == [
+            LoadAverage(oneMinute: 0.5, fiveMinutes: 0.4, fifteenMinutes: 0.3),
+            LoadAverage(oneMinute: 1, fiveMinutes: 0.5, fifteenMinutes: 0.25),
+        ])
+        #expect(monitor.status == .failed("The connection closed."))
     }
 
-    @Test func reportsFailure() async {
+    @Test func reportsConnectionFailure() async {
         let store = MonitorStore { _ in throw SSHError.connectionFailed("Connection refused") }
         store.monitor([host("nas")])
         let monitor = store.monitors[0]
@@ -46,26 +75,36 @@ import Testing
         #expect(monitor.status == .failed("Connection refused"))
     }
 
+    @Test func reportsUnexpectedLoadOutput() async {
+        let store = MonitorStore { _ in FakeHost(lines: ["sysctl: unknown oid"]) }
+        store.monitor([host("nas")])
+        let monitor = store.monitors[0]
+        await monitor.settled()
+        #expect(monitor.status == .failed(SSHError.unexpectedOutput.localizedDescription))
+    }
+
     @Test func monitorsEachHostOnceInOrder() {
-        let store = MonitorStore { _ in Self.linux }
+        let store = MonitorStore { _ in FakeHost(staysConnected: true) }
         let nas = host("nas")
         let router = host("router")
         store.monitor([nas])
         store.monitor([router, nas])
         #expect(store.monitors.map(\.id) == [nas.id, router.id])
+        store.stop(nas.id)
+        store.stop(router.id)
     }
 
-    @Test func stopRemovesMonitorAndCancelsConnection() async {
-        let store = MonitorStore { _ in
-            try await Task.sleep(for: .seconds(30))
-            return Self.linux
-        }
+    @Test func stopRemovesMonitorAndDisconnects() async {
+        let store = MonitorStore { _ in FakeHost(lines: ["0.50 0.40 0.30"], staysConnected: true) }
         let nas = host("nas")
         store.monitor([nas])
         let monitor = store.monitors[0]
+        while monitor.samples.isEmpty {
+            await Task.yield()
+        }
         store.stop(nas.id)
         await monitor.settled()
         #expect(store.monitors.isEmpty)
-        #expect(monitor.status == .connecting)
+        #expect(monitor.status == .monitoring)
     }
 }

@@ -12,8 +12,7 @@ struct ArgusApp: App {
         let hosts = HostStore()
         _hosts = State(initialValue: hosts)
         _monitors = State(initialValue: MonitorStore { host in
-            let client = SSHClient(host: host, password: try await hosts.password(for: host))
-            return try await OperatingSystem.fetch(using: client)
+            SSHClient(host: host, password: try await hosts.password(for: host))
         })
     }
 

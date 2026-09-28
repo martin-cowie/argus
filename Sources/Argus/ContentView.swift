@@ -98,16 +98,26 @@ struct ContentView: View {
     }
 }
 
-/// A monitored host's details, with a button to stop monitoring it.
+/// A monitored host's operating system and load, with a button to stop monitoring it.
 struct MonitorPanel: View {
     let monitor: HostMonitor
     let onClose: () -> Void
 
     var body: some View {
         GroupBox {
-            content
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(4)
+            VStack(alignment: .leading, spacing: 12) {
+                if let system = monitor.operatingSystem {
+                    Text("\(system.name) \(system.version)")
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+                if !monitor.samples.isEmpty {
+                    LoadChart(samples: monitor.samples)
+                }
+                status
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
         } label: {
             HStack {
                 Label(monitor.host.displayName, systemImage: "server.rack")
@@ -123,23 +133,16 @@ struct MonitorPanel: View {
         }
     }
 
-    @ViewBuilder private var content: some View {
+    @ViewBuilder private var status: some View {
         switch monitor.status {
         case .connecting:
             ProgressView("Connecting…")
                 .controlSize(.small)
-        case .connected(let system):
-            Grid(alignment: .leading) {
-                GridRow {
-                    Text("Operating system").foregroundStyle(.secondary)
-                    Text(system.name)
-                }
-                GridRow {
-                    Text("Version").foregroundStyle(.secondary)
-                    Text(system.version)
-                }
-            }
-            .textSelection(.enabled)
+        case .monitoring where monitor.samples.isEmpty:
+            ProgressView("Waiting for load…")
+                .controlSize(.small)
+        case .monitoring:
+            EmptyView()
         case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.secondary)

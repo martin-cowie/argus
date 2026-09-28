@@ -34,6 +34,26 @@ import Testing
         #expect(clock.now - start < .seconds(10))
     }
 
+    @Test func deliversLinesBeforeExit() async throws {
+        let (lines, continuation) = AsyncStream.makeStream(of: String.self)
+        let task = Task {
+            try await ProcessRunner.run(
+                URL(fileURLWithPath: "/bin/sh"),
+                arguments: ["-c", "echo one; echo two; exec sleep 30"]
+            ) { continuation.yield($0) }
+        }
+        var received: [String] = []
+        for await line in lines {
+            received.append(line)
+            if received.count == 2 {
+                break
+            }
+        }
+        task.cancel()
+        #expect(received == ["one", "two"])
+        await #expect(throws: CancellationError.self) { try await task.value }
+    }
+
     @Test func cancellationBeforeLaunchThrows() async {
         let task = Task {
             withUnsafeCurrentTask { $0?.cancel() }
