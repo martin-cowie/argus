@@ -19,12 +19,9 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 iconset="$work/AppIcon.iconset"
 mkdir "$iconset"
-# Apple's icon grid centres 824px of artwork on a 1024px canvas.
-rsvg-convert --width 824 --height 824 --page-width 1024 --page-height 1024 --left 100 --top 100 \
-    --output "$work/icon-1024.png" Resources/AppIcon.svg
 for size in 16 32 128 256 512; do
-    sips -z "$size" "$size" "$work/icon-1024.png" --out "$iconset/icon_${size}x${size}.png" >/dev/null
-    sips -z "$((size * 2))" "$((size * 2))" "$work/icon-1024.png" --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
+    sips -z "$size" "$size" Resources/AppIcon.png --out "$iconset/icon_${size}x${size}.png" >/dev/null
+    sips -z "$((size * 2))" "$((size * 2))" Resources/AppIcon.png --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
 done
 iconutil --convert icns --output "$app/Contents/Resources/AppIcon.icns" "$iconset"
 
