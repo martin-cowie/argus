@@ -45,12 +45,16 @@ enum ProcessRunner {
         onLine: @escaping @Sendable (String) -> Void
     ) async throws -> ProcessOutput {
         try await run(executable, arguments: arguments, environment: environment) { handle in
-            do {
-                for try await line in handle.bytes.lines {
-                    onLine(line)
+            var pending = Data()
+            for await chunk in chunks(of: handle) {
+                pending.append(chunk)
+                while let newline = pending.firstIndex(of: UInt8(ascii: "\n")) {
+                    onLine(String(decoding: pending[..<newline], as: UTF8.self))
+                    pending.removeSubrange(...newline)
                 }
-            } catch {
-                // A failed read ends the output early; the exit status still reports the outcome.
+            }
+            if !pending.isEmpty {
+                onLine(String(decoding: pending, as: UTF8.self))
             }
             return Data()
         }
@@ -123,9 +127,26 @@ enum ProcessRunner {
     }
 
     private static func readToEnd(_ handle: FileHandle) async -> Data {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global().async {
-                continuation.resume(returning: handle.readDataToEndOfFile())
+        var result = Data()
+        for await chunk in chunks(of: handle) {
+            result.append(chunk)
+        }
+        return result
+    }
+
+    /// The data read from a pipe, as it arrives, until end of file.
+    ///
+    /// Reads happen only when the pipe has data, so no thread waits on a quiet process.
+    private static func chunks(of handle: FileHandle) -> AsyncStream<Data> {
+        AsyncStream { continuation in
+            handle.readabilityHandler = { handle in
+                let data = handle.availableData
+                if data.isEmpty {
+                    handle.readabilityHandler = nil
+                    continuation.finish()
+                } else {
+                    continuation.yield(data)
+                }
             }
         }
     }

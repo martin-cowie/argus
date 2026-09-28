@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 @testable import Argus
 
@@ -52,6 +53,38 @@ import Testing
         task.cancel()
         #expect(received == ["one", "two"])
         await #expect(throws: CancellationError.self) { try await task.value }
+    }
+
+    @Test func joinsLinesSplitAcrossWrites() async throws {
+        let lines = Mutex<[String]>([])
+        _ = try await ProcessRunner.run(
+            URL(fileURLWithPath: "/bin/sh"),
+            arguments: ["-c", "printf on; sleep 0.2; printf 'e\\ntwo\\n\\nlast'"]
+        ) { line in lines.withLock { $0.append(line) } }
+        #expect(lines.withLock { $0 } == ["one", "two", "", "last"])
+    }
+
+    @Test func runningProcessesLeaveDispatchThreadsFree() async {
+        let runs = Task {
+            try await withThrowingTaskGroup { group in
+                for _ in 0..<80 {
+                    group.addTask {
+                        _ = try await ProcessRunner.run(URL(fileURLWithPath: "/bin/sleep"), arguments: ["30"])
+                    }
+                }
+                try await group.waitForAll()
+            }
+        }
+        try? await Task.sleep(for: .milliseconds(500))
+        let clock = ContinuousClock()
+        let start = clock.now
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global().async { continuation.resume() }
+        }
+        let waited = clock.now - start
+        runs.cancel()
+        _ = await runs.result
+        #expect(waited < .seconds(1))
     }
 
     @Test func cancellationBeforeLaunchThrows() async {
