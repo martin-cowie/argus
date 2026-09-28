@@ -3,13 +3,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "argus",
+    name: "Argus",
     platforms: [.macOS(.v26)],
     products: [
-        .executable(name: "argus", targets: ["Argus"])
+        .executable(name: "Argus", targets: ["Argus"])
     ],
     targets: [
-        .executableTarget(name: "Argus"),
+        .executableTarget(name: "Argus", resources: [.process("Resources")]),
         .testTarget(name: "ArgusTests", dependencies: ["Argus"])
     ]
 )

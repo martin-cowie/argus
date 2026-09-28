@@ -9,7 +9,7 @@ build:
 	swift build
 
 run:
-	swift run argus
+	swift run Argus
 
 test:
 	swift test $(TEST_FLAGS)

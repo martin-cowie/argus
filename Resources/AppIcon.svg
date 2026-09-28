@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Argus App Icon</title>
+  <rect width="256" height="256" rx="48" fill="#061A38"/>
+  <path d="M32 205 91 45H165L224 205H178L163 172H93L78 205Z" fill="#fff"/>
+  <path d="M103 125 128 70 153 125Z" fill="#061A38"/>
+  <path d="M58 144Q91 104 128 104Q165 104 198 144Q165 184 128 184Q91 184 58 144Z" fill="#061A38"/>
+  <circle cx="128" cy="144" r="34" fill="#0875E8"/>
+  <circle cx="128" cy="144" r="19" fill="#061A38"/>
+  <circle cx="138" cy="133" r="7" fill="#fff"/>
+</svg>
