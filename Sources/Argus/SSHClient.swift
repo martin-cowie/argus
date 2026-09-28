@@ -8,12 +8,15 @@ enum SSHError: LocalizedError, Equatable {
     case commandFailed(status: Int32, message: String)
     /// Password authentication was chosen but no password is stored.
     case missingPassword
+    /// The remote command's output was not in the expected form.
+    case unexpectedOutput
 
     var errorDescription: String? {
         switch self {
         case .connectionFailed(let message): message.isEmpty ? "Couldn't connect." : message
         case .commandFailed(let status, let message): message.isEmpty ? "The command failed with status \(status)." : message
         case .missingPassword: "No password is stored for this host."
+        case .unexpectedOutput: "The host's reply wasn't understood."
         }
     }
 }
@@ -32,7 +35,8 @@ struct SSHClient: Sendable {
     ///
     /// - Parameter script: The script, run by the remote `sh`.
     /// - Returns: The script's standard output, decoded as UTF-8.
-    /// - Throws: `SSHError` if the connection or the script fails.
+    /// - Throws: `SSHError` if the connection or the script fails, or `CancellationError` if the
+    ///   task is cancelled.
     func run(_ script: String) async throws -> String {
         let output = try await ProcessRunner.run(
             Self.ssh,

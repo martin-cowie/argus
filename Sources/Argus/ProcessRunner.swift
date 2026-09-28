@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// The result of running a process to completion.
 struct ProcessOutput: Sendable {
@@ -16,7 +17,8 @@ enum ProcessRunner {
     ///   - arguments: Its arguments.
     ///   - environment: Variables to add to the current environment.
     /// - Returns: The exit status and everything written to standard output and standard error.
-    /// - Throws: An error if the process cannot be launched.
+    /// - Throws: An error if the process cannot be launched, or `CancellationError` if the task is
+    ///   cancelled, in which case the process is terminated.
     static func run(
         _ executable: URL,
         arguments: [String],
@@ -35,15 +37,32 @@ enum ProcessRunner {
         // Both pipes are drained concurrently so a child filling one cannot deadlock on the other.
         async let outputData = readToEnd(output.fileHandleForReading)
         async let errorData = readToEnd(errors.fileHandleForReading)
+        let launch = Mutex(Launch.pending)
         let status: Int32
         do {
-            status = try await withCheckedThrowingContinuation { continuation in
-                process.terminationHandler = { continuation.resume(returning: $0.terminationStatus) }
-                do {
-                    try process.run()
-                } catch {
-                    process.terminationHandler = nil
-                    continuation.resume(throwing: error)
+            status = try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    launch.withLock { state in
+                        guard state == .pending else {
+                            continuation.resume(throwing: CancellationError())
+                            return
+                        }
+                        process.terminationHandler = { continuation.resume(returning: $0.terminationStatus) }
+                        do {
+                            try process.run()
+                            state = .running
+                        } catch {
+                            process.terminationHandler = nil
+                            continuation.resume(throwing: error)
+                        }
+                    }
+                }
+            } onCancel: {
+                launch.withLock { state in
+                    if state == .running {
+                        process.terminate()
+                    }
+                    state = .cancelled
                 }
             }
         } catch {
@@ -53,7 +72,16 @@ enum ProcessRunner {
             _ = await (outputData, errorData)
             throw error
         }
-        return await ProcessOutput(status: status, standardOutput: outputData, standardError: errorData)
+        let result = await ProcessOutput(status: status, standardOutput: outputData, standardError: errorData)
+        try Task.checkCancellation()
+        return result
+    }
+
+    /// Whether a process has been launched, so cancellation knows whether to terminate it.
+    private enum Launch {
+        case pending
+        case running
+        case cancelled
     }
 
     private static func readToEnd(_ handle: FileHandle) async -> Data {

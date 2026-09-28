@@ -6,7 +6,8 @@ import Testing
 @MainActor
 @Test func contentViewBuilds() {
     let store = HostStore(fileURL: temporaryHostsFile(), passwords: InMemoryPasswordStore())
-    _ = ContentView(store: store).body
+    let monitors = MonitorStore { _ in OperatingSystem(name: "Linux", version: "6.1") }
+    _ = ContentView(hosts: store, monitors: monitors).body
 }
 
 @MainActor

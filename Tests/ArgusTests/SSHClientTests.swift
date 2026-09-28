@@ -22,6 +22,26 @@ import Testing
         #expect(String(decoding: output.standardOutput, as: UTF8.self) == "watching")
     }
 
+    @Test func cancellationTerminatesProcess() async {
+        let clock = ContinuousClock()
+        let start = clock.now
+        let task = Task {
+            try await ProcessRunner.run(URL(fileURLWithPath: "/bin/sleep"), arguments: ["30"])
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+        task.cancel()
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(clock.now - start < .seconds(10))
+    }
+
+    @Test func cancellationBeforeLaunchThrows() async {
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await ProcessRunner.run(URL(fileURLWithPath: "/usr/bin/true"), arguments: [])
+        }
+        await #expect(throws: CancellationError.self) { try await task.value }
+    }
+
     @Test func throwsWhenExecutableIsMissing() async {
         await #expect(throws: (any Error).self) {
             try await ProcessRunner.run(URL(fileURLWithPath: "/nonexistent"), arguments: [])
