@@ -56,7 +56,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $isAddingHost) {
-            AddHostView { host, password in
+            AddHostView(existingHosts: store.hosts) { host, password in
                 try store.add(host, password: password)
                 selection = host.id
             }
