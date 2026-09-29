@@ -11,9 +11,20 @@ import Testing
 }
 
 @MainActor
-@Test func loadChartBuilds() {
-    let sample = LoadSample(date: .now, load: LoadAverage(oneMinute: 1, fiveMinutes: 0.5, fifteenMinutes: 0.25))
-    _ = LoadChart(samples: [sample]).body
+@Suite struct LoadChartTests {
+    private func samples(_ loads: Double...) -> [LoadSample] {
+        loads.map { LoadSample(date: .now, load: LoadAverage(oneMinute: $0, fiveMinutes: 0.5, fifteenMinutes: 0.25)) }
+    }
+
+    @Test func builds() {
+        _ = LoadChart(samples: samples(1), processorCount: 4).body
+    }
+
+    @Test func marksCoreCountOnlyWhenLoadExceedsIt() {
+        #expect(LoadChart(samples: samples(1, 4), processorCount: 4).overloadedProcessorCount == nil)
+        #expect(LoadChart(samples: samples(1, 4.01, 2), processorCount: 4).overloadedProcessorCount == 4)
+        #expect(LoadChart(samples: samples(9), processorCount: nil).overloadedProcessorCount == nil)
+    }
 }
 
 @MainActor
