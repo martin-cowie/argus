@@ -10,6 +10,8 @@ struct AddHostView: View {
         case failed(String)
     }
 
+    /// The hosts already added, which are left out of the hostname suggestions.
+    let existingHosts: [RemoteHost]
     /// Saves the new host with its password, if any; an error thrown is shown to the user.
     let onAdd: (RemoteHost, String?) throws -> Void
 
@@ -18,12 +20,20 @@ struct AddHostView: View {
     @State private var saveError: String?
     @State private var connectionTest: ConnectionTest?
     @State private var testTask: Task<Void, Never>?
+    @State private var bonjour = BonjourBrowser()
+    @State private var knownHosts: [HostSuggestion] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Form {
                 Section {
-                    TextField("Hostname or IP address", text: $draft.hostname, prompt: Text("server.example.com"))
+                    LabeledContent("Hostname or IP address") {
+                        HostnameComboBox(
+                            text: $draft.hostname,
+                            placeholder: "server.example.com",
+                            suggestions: suggestions
+                        ) { draft.port = $0.port }
+                    }
                     TextField("Port", value: $draft.port, format: .number.grouping(.never))
                     TextField("Username", text: $draft.username)
                 }
@@ -60,6 +70,8 @@ struct AddHostView: View {
         }
         .frame(width: 460)
         .navigationTitle("Add Host")
+        .task { await bonjour.browse() }
+        .task { knownHosts = await KnownHosts.load() }
         .onChange(of: draft) {
             testTask?.cancel()
             connectionTest = nil
@@ -69,6 +81,14 @@ struct AddHostView: View {
         } message: { message in
             Text(message)
         }
+    }
+
+    private var suggestions: [HostSuggestion] {
+        HostSuggestion.merge(
+            [bonjour.hosts, knownHosts],
+            excluding: existingHosts.map(\.hostname),
+            matching: draft.hostname
+        )
     }
 
     @ViewBuilder private var credentialField: some View {
