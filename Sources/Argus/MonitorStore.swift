@@ -44,7 +44,7 @@ struct LoadSample: Equatable, Sendable {
     let load: LoadAverage
 }
 
-/// Monitors one host in the background: identifies its operating system, then samples its load.
+/// Monitors one host in the background: identifies its system, then samples its load.
 @MainActor
 @Observable
 final class HostMonitor: Identifiable {
@@ -60,7 +60,7 @@ final class HostMonitor: Identifiable {
 
     let host: RemoteHost
     private(set) var status = Status.connecting
-    private(set) var operatingSystem: OperatingSystem?
+    private(set) var system: SystemInfo?
     /// The load samples received within `history`, oldest first.
     private(set) var samples: [LoadSample] = []
 
@@ -78,8 +78,8 @@ final class HostMonitor: Identifiable {
         task = Task { [weak self] in
             do {
                 let runner = try await connect(host)
-                let system = try await OperatingSystem.fetch(from: runner)
-                self?.operatingSystem = system
+                let system = try await SystemInfo.fetch(from: runner)
+                self?.system = system
                 self?.status = .monitoring
                 for try await line in runner.lines(LoadAverage.script) {
                     guard let load = LoadAverage(line: line) else { throw SSHError.unexpectedOutput }

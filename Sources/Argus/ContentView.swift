@@ -113,13 +113,13 @@ struct MonitorPanel: View {
     var body: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
-                if let system = monitor.operatingSystem {
+                if let system = monitor.system?.operatingSystem {
                     Text("\(system.name) \(system.version)")
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
                 if !monitor.samples.isEmpty {
-                    LoadChart(samples: monitor.samples)
+                    LoadChart(samples: monitor.samples, processorCount: monitor.system?.processorCount)
                 }
                 status
             }

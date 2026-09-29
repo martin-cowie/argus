@@ -27,8 +27,8 @@ func temporaryHostsFile() -> URL {
 
 /// A host that answers scripts with canned output.
 struct FakeHost: ScriptRunner {
-    /// What `run` prints, as `OperatingSystem.script` would.
-    var output = "Debian GNU/Linux\n12 (bookworm)\n"
+    /// What `run` prints, as `SystemInfo.script` would.
+    var output = "Debian GNU/Linux\n12 (bookworm)\n4\n"
     /// The lines `lines` prints.
     var lines: [String] = []
     /// Whether the `lines` stream stays open after the last line, as a live connection would.
