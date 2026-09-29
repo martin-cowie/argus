@@ -28,10 +28,10 @@ struct AddHostView: View {
             Form {
                 Section {
                     LabeledContent("Hostname or IP address") {
-                        HostnameComboBox(
+                        HostnameField(
                             text: $draft.hostname,
-                            placeholder: "server.example.com",
-                            suggestions: suggestions
+                            localNetworkHosts: suggestions[0],
+                            knownHosts: suggestions[1]
                         ) { draft.port = $0.port }
                     }
                     TextField("Port", value: $draft.port, format: .number.grouping(.never))
@@ -83,7 +83,8 @@ struct AddHostView: View {
         }
     }
 
-    private var suggestions: [HostSuggestion] {
+    /// The Bonjour and `known_hosts` suggestions, in that order.
+    private var suggestions: [[HostSuggestion]] {
         HostSuggestion.merge(
             [bonjour.hosts, knownHosts],
             excluding: existingHosts.map(\.hostname),

@@ -5,21 +5,24 @@ struct HostSuggestion: Hashable, Sendable {
     let hostname: String
     let port: Int
 
-    /// Combines suggestions from several sources into the list shown to the user.
+    /// Prepares suggestions from several sources for showing to the user, source by source.
     ///
     /// - Parameters:
-    ///   - sources: The suggestions from each source, most authoritative first; when two sources
-    ///     suggest the same hostname, the earlier one's port wins.
+    ///   - sources: The suggestions from each source, most authoritative first; a hostname
+    ///     suggested by an earlier source is left out of later ones.
     ///   - excluded: Hostnames to leave out, such as hosts already added.
     ///   - query: Text typed so far; only hostnames containing it are kept.
-    /// - Returns: One suggestion per hostname, compared without regard to case, sorted by hostname.
-    static func merge(_ sources: [[HostSuggestion]], excluding excluded: some Sequence<String>, matching query: String) -> [HostSuggestion] {
+    /// - Returns: The suggestions for each source, in the same order, with one per hostname
+    ///   compared without regard to case, sorted by hostname.
+    static func merge(_ sources: [[HostSuggestion]], excluding excluded: some Sequence<String>, matching query: String) -> [[HostSuggestion]] {
         var seen = Set(excluded.map { $0.lowercased() })
         let trimmedQuery = query.trimmingCharacters(in: .whitespaces)
-        return sources.joined()
-            .filter { seen.insert($0.hostname.lowercased()).inserted }
-            .filter { trimmedQuery.isEmpty || $0.hostname.localizedCaseInsensitiveContains(trimmedQuery) }
-            .sorted { $0.hostname.localizedStandardCompare($1.hostname) == .orderedAscending }
+        return sources.map { source in
+            source
+                .filter { seen.insert($0.hostname.lowercased()).inserted }
+                .filter { trimmedQuery.isEmpty || $0.hostname.localizedCaseInsensitiveContains(trimmedQuery) }
+                .sorted { $0.hostname.localizedStandardCompare($1.hostname) == .orderedAscending }
+        }
     }
 }
 

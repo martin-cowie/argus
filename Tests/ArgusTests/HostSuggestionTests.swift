@@ -45,18 +45,17 @@ import Testing
         HostSuggestion(hostname: "backup", port: 22),
     ]
 
-    @Test func earlierSourceWinsAndResultIsSorted() {
+    @Test func keepsSourcesApartAndEarlierSourceWins() {
         let merged = HostSuggestion.merge([bonjour, known], excluding: [], matching: "")
         #expect(merged == [
-            HostSuggestion(hostname: "backup", port: 22),
-            HostSuggestion(hostname: "nas.local", port: 2222),
-            HostSuggestion(hostname: "router", port: 22),
+            [HostSuggestion(hostname: "nas.local", port: 2222)],
+            [HostSuggestion(hostname: "backup", port: 22), HostSuggestion(hostname: "router", port: 22)],
         ])
     }
 
     @Test func leavesOutExistingHostsAndNonMatches() {
         let merged = HostSuggestion.merge([bonjour, known], excluding: ["Router"], matching: " A ")
-        #expect(merged.map(\.hostname) == ["backup", "nas.local"])
+        #expect(merged.map { $0.map(\.hostname) } == [["nas.local"], ["backup"]])
     }
 }
 
