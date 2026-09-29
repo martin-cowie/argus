@@ -10,6 +10,11 @@ import Testing
 }
 
 @MainActor
+@Test func addHostViewBuilds() {
+    _ = AddHostView(existingHosts: []) { _, _ in }.body
+}
+
+@MainActor
 @Test func aboutCreditsLinkToNamesake() {
     let credits = AboutPanel.credits
     #expect(credits.string == "Argus of the thousand eyes")
