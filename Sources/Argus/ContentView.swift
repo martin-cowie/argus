@@ -9,13 +9,14 @@ struct ContentView: View {
     @State private var selection = Set<RemoteHost.ID>()
     @State private var isAddingHost = false
     @State private var removeError: String?
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         NavigationSplitView {
             List(selection: $selection) {
                 Section("Hosts") {
                     ForEach(hosts.hosts) { host in
-                        Label(host.displayName, systemImage: "server.rack")
+                        Label(host.displayName, systemImage: "eye")
                             .tag(host.id)
                             .help(host.authenticationDescription)
                     }
@@ -23,10 +24,12 @@ struct ContentView: View {
             }
             .contextMenu(forSelectionType: RemoteHost.ID.self) { ids in
                 if !ids.isEmpty {
-                    Button("Monitor") { monitors.monitor(hosts.hosts.filter { ids.contains($0.id) }) }
+                    Button("Monitor") { monitor(ids) }
                     Divider()
                     Button("Remove", role: .destructive) { remove(ids) }
                 }
+            } primaryAction: { ids in
+                monitor(ids)
             }
             .safeAreaInset(edge: .bottom) {
                 HStack {
@@ -55,7 +58,7 @@ struct ContentView: View {
                 }
             } else if hosts.hosts.isEmpty {
                 ContentUnavailableView {
-                    Image(nsImage: Bundle.resources.image(forResource: "Logo") ?? NSImage())
+                    Image(nsImage: Bundle.resources.image(forResource: colorScheme == .dark ? "Logo-dark" : "Logo") ?? NSImage())
                         .resizable()
                         .scaledToFit()
                         .frame(width: 320)
@@ -83,6 +86,10 @@ struct ContentView: View {
         } message: { message in
             Text(message)
         }
+    }
+
+    private func monitor(_ ids: Set<RemoteHost.ID>) {
+        monitors.monitor(hosts.hosts.filter { ids.contains($0.id) })
     }
 
     private func remove(_ ids: Set<RemoteHost.ID>) {
@@ -120,7 +127,7 @@ struct MonitorPanel: View {
             .padding(4)
         } label: {
             HStack {
-                Label(monitor.host.displayName, systemImage: "server.rack")
+                Label(monitor.host.displayName, systemImage: "eye")
                     .font(.headline)
                 Spacer()
                 Button(action: onClose) {

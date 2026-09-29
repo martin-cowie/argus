@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180">
+  <title>Argus Logo for dark backgrounds</title>
+  <g fill="#F2F5FA">
+    <path d="M18 148 80 20H146L208 148H162L147 119H79L64 148Z"/>
+    <path d="M89 101 113 51 137 101Z" fill="#061A38"/>
+  </g>
+  <path d="M57 112Q84 78 113 78Q142 78 169 112Q142 146 113 146Q84 146 57 112Z" fill="#061A38"/>
+  <circle cx="113" cy="112" r="27" fill="#2A8CFF"/>
+  <circle cx="113" cy="112" r="15" fill="#061A38"/>
+  <circle cx="121" cy="104" r="5" fill="#fff"/>
+  <text x="238" y="130"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="108" font-weight="700"
+        letter-spacing="-5" fill="#F2F5FA">Argus</text>
+</svg>

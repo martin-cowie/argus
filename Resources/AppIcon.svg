@@ -1,6 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
   <title>Argus App Icon</title>
-  <rect width="256" height="256" rx="48" fill="#061A38"/>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1A5AB0"/>
+      <stop offset="1" stop-color="#061A38"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="url(#tile)"/>
   <path d="M32 205 91 45H165L224 205H178L163 172H93L78 205Z" fill="#fff"/>
   <path d="M103 125 128 70 153 125Z" fill="#061A38"/>
   <path d="M58 144Q91 104 128 104Q165 104 198 144Q165 184 128 184Q91 184 58 144Z" fill="#061A38"/>
