@@ -7,13 +7,17 @@ struct ArgusApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var hosts: HostStore
     @State private var monitors: MonitorStore
+    @State private var dockIcon: DockIcon
+    @AppStorage("showsLoadInDock") private var showsLoadInDock = false
 
     init() {
         let hosts = HostStore()
         _hosts = State(initialValue: hosts)
-        _monitors = State(initialValue: MonitorStore { host in
+        let monitors = MonitorStore { host in
             SSHClient(host: host, password: try await hosts.password(for: host))
-        })
+        }
+        _monitors = State(initialValue: monitors)
+        _dockIcon = State(initialValue: DockIcon(monitors: monitors))
     }
 
     var body: some Scene {
@@ -25,6 +29,12 @@ struct ArgusApp: App {
             CommandGroup(replacing: .appInfo) {
                 Button("About Argus", action: AboutPanel.show)
             }
+            CommandGroup(after: .sidebar) {
+                Toggle("Show Load in Dock Icon", isOn: $showsLoadInDock)
+            }
+        }
+        .onChange(of: showsLoadInDock, initial: true) {
+            dockIcon.showsLoad = showsLoadInDock
         }
     }
 }
