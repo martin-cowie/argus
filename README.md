@@ -9,6 +9,8 @@
 
 A macOS app for monitoring remote hosts over SSH.
 
+<img src="argus-screenshot.png" alt="Argus monitoring the load averages of three hosts" width="600">
+
 Requires macOS 26 and Swift 6.2.
 
 ```sh
