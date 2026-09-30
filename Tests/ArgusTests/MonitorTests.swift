@@ -2,23 +2,31 @@ import Foundation
 import Testing
 @testable import Argus
 
-@Suite struct OperatingSystemTests {
-    @Test func parsesNameAndVersion() {
-        let system = OperatingSystem(scriptOutput: "Ubuntu\n24.04.1 LTS (Noble Numbat)\n")
-        #expect(system == OperatingSystem(name: "Ubuntu", version: "24.04.1 LTS (Noble Numbat)"))
+@Suite struct SystemInfoTests {
+    @Test func parsesOperatingSystemAndCores() {
+        let system = SystemInfo(scriptOutput: "Ubuntu\n24.04.1 LTS (Noble Numbat)\n8\n")
+        #expect(system?.operatingSystem == OperatingSystem(name: "Ubuntu", version: "24.04.1 LTS (Noble Numbat)"))
+        #expect(system?.processorCount == 8)
+    }
+
+    @Test(arguments: ["Linux\n6.1\n\n", "Linux\n6.1\n0\n", "Linux\n6.1"])
+    func toleratesMissingCoreCount(output: String) throws {
+        let system = try #require(SystemInfo(scriptOutput: output))
+        #expect(system.processorCount == nil)
     }
 
     @Test(arguments: ["", "\n", "\nDebian\n", "Linux"])
     func rejectsOutputWithoutNameAndVersion(output: String) {
-        #expect(OperatingSystem(scriptOutput: output) == nil)
+        #expect(SystemInfo(scriptOutput: output) == nil)
     }
 
     @Test func scriptDescribesThisMac() async throws {
-        let output = try await ProcessRunner.run(URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", OperatingSystem.script])
-        let system = try #require(OperatingSystem(scriptOutput: String(decoding: output.standardOutput, as: UTF8.self)))
+        let output = try await ProcessRunner.run(URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", SystemInfo.script])
+        let system = try #require(SystemInfo(scriptOutput: String(decoding: output.standardOutput, as: UTF8.self)))
         let version = ProcessInfo.processInfo.operatingSystemVersion
-        #expect(system.name == "macOS")
-        #expect(system.version.hasPrefix("\(version.majorVersion).\(version.minorVersion)"))
+        #expect(system.operatingSystem.name == "macOS")
+        #expect(system.operatingSystem.version.hasPrefix("\(version.majorVersion).\(version.minorVersion)"))
+        #expect(system.processorCount == ProcessInfo.processInfo.activeProcessorCount)
     }
 }
 
@@ -59,7 +67,10 @@ import Testing
         store.monitor([host("nas")])
         let monitor = store.monitors[0]
         await monitor.settled()
-        #expect(monitor.operatingSystem == OperatingSystem(name: "Debian GNU/Linux", version: "12 (bookworm)"))
+        #expect(monitor.system == SystemInfo(
+            operatingSystem: OperatingSystem(name: "Debian GNU/Linux", version: "12 (bookworm)"),
+            processorCount: 4
+        ))
         #expect(monitor.samples.map(\.load) == [
             LoadAverage(oneMinute: 0.5, fiveMinutes: 0.4, fifteenMinutes: 0.3),
             LoadAverage(oneMinute: 1, fiveMinutes: 0.5, fifteenMinutes: 0.25),
