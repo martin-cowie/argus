@@ -24,3 +24,28 @@ func temporaryHostsFile() -> URL {
     FileManager.default.temporaryDirectory
         .appending(components: "ArgusTests-\(UUID().uuidString)", "hosts.json")
 }
+
+/// A host that answers scripts with canned output.
+struct FakeHost: ScriptRunner {
+    /// What `run` prints, as `OperatingSystem.script` would.
+    var output = "Debian GNU/Linux\n12 (bookworm)\n"
+    /// The lines `lines` prints.
+    var lines: [String] = []
+    /// Whether the `lines` stream stays open after the last line, as a live connection would.
+    var staysConnected = false
+
+    func run(_ script: String) async throws -> String {
+        output
+    }
+
+    func lines(_ script: String) -> AsyncThrowingStream<String, any Error> {
+        AsyncThrowingStream { continuation in
+            for line in lines {
+                continuation.yield(line)
+            }
+            if !staysConnected {
+                continuation.finish()
+            }
+        }
+    }
+}

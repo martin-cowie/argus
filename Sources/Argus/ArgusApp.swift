@@ -5,11 +5,20 @@ import SwiftUI
 @main
 struct ArgusApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var hosts = HostStore()
+    @State private var hosts: HostStore
+    @State private var monitors: MonitorStore
+
+    init() {
+        let hosts = HostStore()
+        _hosts = State(initialValue: hosts)
+        _monitors = State(initialValue: MonitorStore { host in
+            SSHClient(host: host, password: try await hosts.password(for: host))
+        })
+    }
 
     var body: some Scene {
         WindowGroup("Argus") {
-            ContentView(store: hosts)
+            ContentView(hosts: hosts, monitors: monitors)
         }
         .defaultSize(width: 900, height: 600)
         .commands {

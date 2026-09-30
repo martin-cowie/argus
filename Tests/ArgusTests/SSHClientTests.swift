@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 @testable import Argus
 
@@ -20,6 +21,78 @@ import Testing
             environment: ["ARGUS_TEST": "watching"]
         )
         #expect(String(decoding: output.standardOutput, as: UTF8.self) == "watching")
+    }
+
+    @Test func cancellationTerminatesProcess() async {
+        let clock = ContinuousClock()
+        let start = clock.now
+        let task = Task {
+            try await ProcessRunner.run(URL(fileURLWithPath: "/bin/sleep"), arguments: ["30"])
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+        task.cancel()
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(clock.now - start < .seconds(10))
+    }
+
+    @Test func deliversLinesBeforeExit() async throws {
+        let (lines, continuation) = AsyncStream.makeStream(of: String.self)
+        let task = Task {
+            try await ProcessRunner.run(
+                URL(fileURLWithPath: "/bin/sh"),
+                arguments: ["-c", "echo one; echo two; exec sleep 30"]
+            ) { continuation.yield($0) }
+        }
+        var received: [String] = []
+        for await line in lines {
+            received.append(line)
+            if received.count == 2 {
+                break
+            }
+        }
+        task.cancel()
+        #expect(received == ["one", "two"])
+        await #expect(throws: CancellationError.self) { try await task.value }
+    }
+
+    @Test func joinsLinesSplitAcrossWrites() async throws {
+        let lines = Mutex<[String]>([])
+        _ = try await ProcessRunner.run(
+            URL(fileURLWithPath: "/bin/sh"),
+            arguments: ["-c", "printf on; sleep 0.2; printf 'e\\ntwo\\n\\nlast'"]
+        ) { line in lines.withLock { $0.append(line) } }
+        #expect(lines.withLock { $0 } == ["one", "two", "", "last"])
+    }
+
+    @Test func runningProcessesLeaveDispatchThreadsFree() async {
+        let runs = Task {
+            try await withThrowingTaskGroup { group in
+                for _ in 0..<80 {
+                    group.addTask {
+                        _ = try await ProcessRunner.run(URL(fileURLWithPath: "/bin/sleep"), arguments: ["30"])
+                    }
+                }
+                try await group.waitForAll()
+            }
+        }
+        try? await Task.sleep(for: .milliseconds(500))
+        let clock = ContinuousClock()
+        let start = clock.now
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global().async { continuation.resume() }
+        }
+        let waited = clock.now - start
+        runs.cancel()
+        _ = await runs.result
+        #expect(waited < .seconds(1))
+    }
+
+    @Test func cancellationBeforeLaunchThrows() async {
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await ProcessRunner.run(URL(fileURLWithPath: "/usr/bin/true"), arguments: [])
+        }
+        await #expect(throws: CancellationError.self) { try await task.value }
     }
 
     @Test func throwsWhenExecutableIsMissing() async {

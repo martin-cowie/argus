@@ -8,18 +8,38 @@ enum SSHError: LocalizedError, Equatable {
     case commandFailed(status: Int32, message: String)
     /// Password authentication was chosen but no password is stored.
     case missingPassword
+    /// The remote command's output was not in the expected form.
+    case unexpectedOutput
 
     var errorDescription: String? {
         switch self {
         case .connectionFailed(let message): message.isEmpty ? "Couldn't connect." : message
         case .commandFailed(let status, let message): message.isEmpty ? "The command failed with status \(status)." : message
         case .missingPassword: "No password is stored for this host."
+        case .unexpectedOutput: "The host's reply wasn't understood."
         }
     }
 }
 
+/// Runs shell scripts on a host.
+protocol ScriptRunner: Sendable {
+    /// Runs a script to completion.
+    ///
+    /// - Parameter script: A POSIX shell script.
+    /// - Returns: The script's standard output.
+    /// - Throws: An error if the script cannot be run or fails.
+    func run(_ script: String) async throws -> String
+
+    /// Runs a long-lived script, delivering its output as it is printed.
+    ///
+    /// - Parameter script: A POSIX shell script.
+    /// - Returns: The lines of the script's standard output, finishing when it exits and throwing
+    ///   if it cannot be run or fails.
+    func lines(_ script: String) -> AsyncThrowingStream<String, any Error>
+}
+
 /// Runs shell scripts on a remote host with the system's OpenSSH client.
-struct SSHClient: Sendable {
+struct SSHClient: ScriptRunner {
     /// The status `ssh` exits with when it cannot connect or authenticate.
     private static let sshFailureStatus: Int32 = 255
     private static let ssh = URL(fileURLWithPath: "/usr/bin/ssh")
@@ -32,18 +52,50 @@ struct SSHClient: Sendable {
     ///
     /// - Parameter script: The script, run by the remote `sh`.
     /// - Returns: The script's standard output, decoded as UTF-8.
-    /// - Throws: `SSHError` if the connection or the script fails.
+    /// - Throws: `SSHError` if the connection or the script fails, or `CancellationError` if the
+    ///   task is cancelled.
     func run(_ script: String) async throws -> String {
         let output = try await ProcessRunner.run(
             Self.ssh,
             arguments: arguments(remoteCommand: Self.remoteCommand(for: script)),
             environment: try environment()
         )
+        try Self.checkStatus(of: output)
+        return String(decoding: output.standardOutput, as: UTF8.self)
+    }
+
+    /// Runs a long-lived POSIX shell script on the host, delivering its output as it is printed.
+    ///
+    /// Ending iteration early, or cancelling the iterating task, disconnects.
+    ///
+    /// - Parameter script: The script, run by the remote `sh`.
+    /// - Returns: The lines of the script's standard output. The stream finishes when the script
+    ///   exits, throwing `SSHError` if the connection or the script fails.
+    func lines(_ script: String) -> AsyncThrowingStream<String, any Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let output = try await ProcessRunner.run(
+                        Self.ssh,
+                        arguments: arguments(remoteCommand: Self.remoteCommand(for: script)),
+                        environment: try environment()
+                    ) { continuation.yield($0) }
+                    try Self.checkStatus(of: output)
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    private static func checkStatus(of output: ProcessOutput) throws {
         let message = String(decoding: output.standardError, as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         switch output.status {
-        case 0: return String(decoding: output.standardOutput, as: UTF8.self)
-        case Self.sshFailureStatus: throw SSHError.connectionFailed(message)
+        case 0: return
+        case sshFailureStatus: throw SSHError.connectionFailed(message)
         default: throw SSHError.commandFailed(status: output.status, message: message)
         }
     }

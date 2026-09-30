@@ -1,4 +1,9 @@
-<h1><img src="Sources/Argus/Resources/Logo.svg" alt="Argus" width="320"></h1>
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="Sources/Argus/Resources/Logo-dark.svg">
+    <img src="Sources/Argus/Resources/Logo.svg" alt="Argus" width="320">
+  </picture>
+</h1>
 
 [![CI](https://github.com/martin-cowie/argus/actions/workflows/ci.yml/badge.svg)](https://github.com/martin-cowie/argus/actions/workflows/ci.yml)
 

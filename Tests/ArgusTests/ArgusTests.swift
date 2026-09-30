@@ -6,7 +6,14 @@ import Testing
 @MainActor
 @Test func contentViewBuilds() {
     let store = HostStore(fileURL: temporaryHostsFile(), passwords: InMemoryPasswordStore())
-    _ = ContentView(store: store).body
+    let monitors = MonitorStore { _ in FakeHost() }
+    _ = ContentView(hosts: store, monitors: monitors).body
+}
+
+@MainActor
+@Test func loadChartBuilds() {
+    let sample = LoadSample(date: .now, load: LoadAverage(oneMinute: 1, fiveMinutes: 0.5, fifteenMinutes: 0.25))
+    _ = LoadChart(samples: [sample]).body
 }
 
 @MainActor
